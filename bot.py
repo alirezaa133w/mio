@@ -10,20 +10,21 @@ ADMIN_ID = 5013016506
 # دیتابیس موقت
 pending_orders = {}
 
-# ایموجی‌های پریمیوم
+# ایموجی‌های پریمیوم تلگرام (با کد یونیکد)
 EMOJIS = {
-    "apple": "🍎",
-    "money": "💰",
-    "tick": "✅",
-    "clock": "⏳",
-    "rocket": "🚀",
-    "gift": "🎁",
-    "star": "⭐",
-    "point": "⭐",
-    "bank": "🏦",
-    "card": "💳",
-    "warning": "⚠️",
-    "success": "🎉"
+    "apple": "🍎",           # سیب
+    "money": "💰",           # پول
+    "tick": "✅",            # تیک
+    "clock": "⏳",           # ساعت شنی
+    "rocket": "🚀",          # موشک
+    "gift": "🎁",            # هدیه
+    "star": "⭐",            # ستاره
+    "point": "⭐",           # ستاره
+    "bank": "🏦",            # بانک
+    "card": "💳",            # کارت
+    "warning": "⚠️",         # هشدار
+    "success": "🎉",         # جشن
+    "mewo": "🍏"             # میو سبز
 }
 
 # ============ توابع ============
@@ -42,7 +43,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     await update.message.reply_text(
         f"{EMOJIS['rocket']} به ربات فروش میوپوینت خوش آمدی {user.first_name}!\n\n"
-        f"{EMOJIS['apple']} تعداد میوپوینت مورد نظرت رو وارد کن (به میلیون):\n"
+        f"{EMOJIS['mewo']} تعداد میوپوینت مورد نظرت رو وارد کن (به میلیون):\n"
         f"(حداقل ۱ میلیون - حداکثر ۱,۰۰۰ میلیون)\n\n"
         f"{EMOJIS['star']} قیمت‌ها (به ازای هر ۱ میلیون میوپوینت):\n"
         f"• زیر ۳۰ میلیون: ۴,۵۰۰ تومان\n"
@@ -77,7 +78,7 @@ async def handle_amount(update: Update, context: ContextTypes.DEFAULT_TYPE):
         [InlineKeyboardButton(f"{EMOJIS['warning']} انصراف", callback_data='cancel')]
     ]
     await update.message.reply_text(
-        f"{EMOJIS['apple']} شما **{mewo_points:,} میلیون** میوپوینت درخواست کردید.\n"
+        f"{EMOJIS['mewo']} شما **{mewo_points:,} میلیون** میوپوینت درخواست کردید.\n"
         f"{EMOJIS['money']} مبلغ قابل پرداخت: **{price:,} تومان**\n\n"
         f"آیا تایید میکنید؟",
         reply_markup=InlineKeyboardMarkup(keyboard)
@@ -90,8 +91,11 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = query.from_user.id
 
     if query.data == 'confirm_amount':
-        await query.edit_message_text(f"{EMOJIS['clock']} شماره کارت ۱۶ رقمی خودت رو وارد کن:")
-        context.user_data['state'] = 'waiting_card'
+        await query.edit_message_text(
+            f"{EMOJIS['card']} شماره کارت میویی خودت رو وارد کن:\n"
+            f"نمونه: `240368354326`"
+        )
+        context.user_data['state'] = 'waiting_mewo_card'
 
     elif query.data == 'cancel':
         await query.edit_message_text(f"{EMOJIS['warning']} لغو شد.")
@@ -104,9 +108,9 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 ADMIN_ID,
                 f"{EMOJIS['gift']} درخواست جدید میوپوینت!\n"
                 f"{EMOJIS['star']} کاربر: {query.from_user.first_name} (ایدی: {user_id})\n"
-                f"{EMOJIS['apple']} میوپوینت: {order['mewo_points']:,}\n"
+                f"{EMOJIS['mewo']} میوپوینت: {order['mewo_points']:,}\n"
                 f"{EMOJIS['money']} مبلغ: {order['price']:,} تومان\n"
-                f"{EMOJIS['card']} شماره کارت: {order['card_number']}"
+                f"{EMOJIS['card']} شماره کارت میویی: {order['mewo_card']}"
             )
             if 'receipt_photo' in order:
                 await context.bot.send_photo(ADMIN_ID, order['receipt_photo'], caption=f"{EMOJIS['bank']} فیش واریزی")
@@ -129,12 +133,13 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             target_user = int(query.data.split('_')[1])
             if target_user in pending_orders:
                 points = pending_orders[target_user]['mewo_points']
+                mewo_card = pending_orders[target_user]['mewo_card']
                 
                 await context.bot.send_message(
                     target_user,
                     f"{EMOJIS['success']} خرید شما تایید شد!\n"
                     f"{EMOJIS['gift']} **{points:,}** میوپوینت به شماره کارت میویی شما واریز شد.\n"
-                    f"{EMOJIS['bank']} شماره کارت میویی: `240368354326`\n"
+                    f"{EMOJIS['card']} شماره کارت میویی: `{mewo_card}`\n"
                     f"{EMOJIS['star']} از خرید شما متشکریم!"
                 )
                 await query.edit_message_text(f"{EMOJIS['tick']} {points:,} میوپوینت برای کاربر {target_user} واریز شد.")
@@ -149,16 +154,22 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             if target_user in pending_orders:
                 del pending_orders[target_user]
 
-async def handle_card(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if context.user_data.get('state') != 'waiting_card':
+async def handle_mewo_card(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """دریافت شماره کارت میویی از کاربر"""
+    if context.user_data.get('state') != 'waiting_mewo_card':
         return
 
     card = update.message.text.strip()
-    if not re.match(r'^\d{16}$', card):
-        await update.message.reply_text(f"{EMOJIS['warning']} شماره کارت باید ۱۶ رقم باشه.")
+    if not re.match(r'^\d{12}$', card):  # ۱۲ رقم
+        await update.message.reply_text(
+            f"{EMOJIS['warning']} شماره کارت میویی باید ۱۲ رقم باشه.\n"
+            f"مثال: `240368354326`"
+        )
         return
 
-    context.user_data['card_number'] = card
+    context.user_data['mewo_card'] = card
+    
+    # حالا شماره کارت بانکی رو میخواد برای واریز پول
     await update.message.reply_text(
         f"{EMOJIS['bank']} مبلغ {context.user_data['price']:,} تومان رو به شماره کارت زیر واریز کن:\n"
         f"`6219861448719251`\n"
@@ -179,7 +190,7 @@ async def handle_receipt(update: Update, context: ContextTypes.DEFAULT_TYPE):
     pending_orders[user_id] = {
         'mewo_points': context.user_data.get('mewo_points'),
         'price': context.user_data.get('price'),
-        'card_number': context.user_data.get('card_number'),
+        'mewo_card': context.user_data.get('mewo_card'),
         'receipt_photo': update.message.photo[-1].file_id
     }
 
@@ -196,9 +207,9 @@ def main():
     app = Application.builder().token(TOKEN).build()
     app.add_handler(CommandHandler("start", start))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_amount))
+    app.add_handler(MessageHandler(filters.Regex(r'^\d{12}$'), handle_mewo_card))  # ۱۲ رقم برای کارت میویی
     app.add_handler(MessageHandler(filters.PHOTO, handle_receipt))
     app.add_handler(CallbackQueryHandler(button_handler))
-    app.add_handler(MessageHandler(filters.Regex(r'^\d{16}$'), handle_card))
     
     print("🤖 ربات میوپوینت با ایموجی‌های پریمیوم روشن شد!")
     app.run_polling()
