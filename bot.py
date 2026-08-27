@@ -10,7 +10,7 @@ from telegram import (
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, MessageHandler, filters, ContextTypes
 
 # ============ تنظیمات ============
-TOKEN = "8651125448:AAEjFhxzCmEcYgi7aTiv5s4LpgH6SWoosPQ"  # ⚠️ بعداً با توکن جدید عوض کن
+TOKEN = "8651125448:AAFElDDn15smzHaJvWLtG-jTLJhFCH4eSds"  # ⚠️ بعداً با توکن جدید عوض کن
 ADMIN_ID = 5013016506
 GROUP_LINK = "https://t.me/+ly7f-ue6IyQzY2Jk"
 
