@@ -1,4 +1,5 @@
-# bot.py
+# bot.py - نسخه اصلاح شده بدون icon_custom_emoji_id
+
 import re
 import asyncio
 from telegram import (
@@ -10,49 +11,39 @@ from telegram import (
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, MessageHandler, filters, ContextTypes
 
 # ============ تنظیمات ============
-TOKEN = "8651125448:AAFElDDn15smzHaJvWLtG-jTLJhFCH4eSds"  # ⚠️ بعداً با توکن جدید عوض کن
+TOKEN = "8651125448:AAFElDDn15smzHaJvWLtG-jTLJhFCH4eSds"
 ADMIN_ID = 5013016506
 GROUP_LINK = "https://t.me/+ly7f-ue6IyQzY2Jk"
 
 # ============ Custom Emoji IDها ============
-# با دستور /emojiid می‌توانید ID واقعی هر ایموجی را بگیرید
 CUSTOM_EMOJIS = {
-    "mewo": "CUSTOM_EMOJI_ID_1",    # 🍏 میو
-    "money": "CUSTOM_EMOJI_ID_2",   # 💰 پول
-    "tick": "CUSTOM_EMOJI_ID_3",    # ✅ تیک
-    "clock": "CUSTOM_EMOJI_ID_4",   # ⏳ ساعت
-    "rocket": "CUSTOM_EMOJI_ID_5",  # 🚀 موشک
-    "gift": "CUSTOM_EMOJI_ID_6",    # 🎁 هدیه
-    "star": "CUSTOM_EMOJI_ID_7",    # ⭐ ستاره
-    "bank": "CUSTOM_EMOJI_ID_8",    # 🏦 بانک
-    "card": "CUSTOM_EMOJI_ID_9",    # 💳 کارت
-    "warning": "CUSTOM_EMOJI_ID_10", # ⚠️ هشدار
-    "success": "CUSTOM_EMOJI_ID_11", # 🎉 موفقیت
-    "game": "CUSTOM_EMOJI_ID_12",   # 🎮 بازی
-    "fire": "CUSTOM_EMOJI_ID_13",   # 🔥 آتش
+    "mewo": "CUSTOM_EMOJI_ID_1",
+    "money": "CUSTOM_EMOJI_ID_2",
+    "tick": "CUSTOM_EMOJI_ID_3",
+    "clock": "CUSTOM_EMOJI_ID_4",
+    "rocket": "CUSTOM_EMOJI_ID_5",
+    "gift": "CUSTOM_EMOJI_ID_6",
+    "star": "CUSTOM_EMOJI_ID_7",
+    "bank": "CUSTOM_EMOJI_ID_8",
+    "card": "CUSTOM_EMOJI_ID_9",
+    "warning": "CUSTOM_EMOJI_ID_10",
+    "success": "CUSTOM_EMOJI_ID_11",
+    "game": "CUSTOM_EMOJI_ID_12",
+    "fire": "CUSTOM_EMOJI_ID_13",
 }
 
 # ============ توابع کمکی ============
 def ce(name: str, fallback: str = "⭐") -> str:
-    """
-    تولید تگ HTML برای Custom Emoji
-    مثال: ce("rocket", "🚀") => '<tg-emoji emoji-id="CUSTOM_EMOJI_ID_5">🚀</tg-emoji>'
-    """
     emoji_id = CUSTOM_EMOJIS.get(name)
     if not emoji_id or emoji_id.startswith("CUSTOM_"):
         return fallback
     return f'<tg-emoji emoji-id="{emoji_id}">{fallback}</tg-emoji>'
 
-def emoji_button(text: str, callback_data: str, emoji_name: str) -> InlineKeyboardButton:
-    """ساخت دکمه با آیکون Custom Emoji"""
-    emoji_id = CUSTOM_EMOJIS.get(emoji_name)
-    if emoji_id and not emoji_id.startswith("CUSTOM_"):
-        return InlineKeyboardButton(
-            text,
-            callback_data=callback_data,
-            icon_custom_emoji_id=emoji_id
-        )
-    return InlineKeyboardButton(f"{text}", callback_data=callback_data)
+def make_button(text: str, callback_data: str, emoji: str = None) -> InlineKeyboardButton:
+    """ساخت دکمه ساده (بدون آیکون)"""
+    if emoji:
+        return InlineKeyboardButton(f"{emoji} {text}", callback_data=callback_data)
+    return InlineKeyboardButton(text, callback_data=callback_data)
 
 # دیتابیس موقت
 pending_orders = {}
@@ -76,20 +67,8 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_ids.add(user.id)
     
     keyboard = [
-        [
-            InlineKeyboardButton(
-                "عضویت در گروه بازی میو",
-                url=GROUP_LINK,
-                icon_custom_emoji_id=CUSTOM_EMOJIS.get("game")
-            )
-        ],
-        [
-            InlineKeyboardButton(
-                "شروع خرید میوپوینت",
-                callback_data="start_shopping",
-                icon_custom_emoji_id=CUSTOM_EMOJIS.get("mewo")
-            )
-        ]
+        [InlineKeyboardButton("🎮 عضویت در گروه بازی میو", url=GROUP_LINK)],
+        [InlineKeyboardButton("🍏 شروع خرید میوپوینت", callback_data="start_shopping")]
     ]
     
     await update.message.reply_text(
@@ -113,20 +92,8 @@ async def admin_panel(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     
     keyboard = [
-        [
-            InlineKeyboardButton(
-                "آمار کاربران",
-                callback_data="admin_stats",
-                icon_custom_emoji_id=CUSTOM_EMOJIS.get("star")
-            )
-        ],
-        [
-            InlineKeyboardButton(
-                "پیام همگانی",
-                callback_data="admin_broadcast",
-                icon_custom_emoji_id=CUSTOM_EMOJIS.get("gift")
-            )
-        ]
+        [InlineKeyboardButton("📊 آمار کاربران", callback_data="admin_stats")],
+        [InlineKeyboardButton("📢 پیام همگانی", callback_data="admin_broadcast")]
     ]
     await update.message.reply_text(
         f'{ce("star", "⭐")} <b>پنل مدیریت ربات</b>\n\n'
@@ -151,13 +118,7 @@ async def admin_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f'👥 تعداد کل کاربران: <b>{total_users}</b>\n'
         f'📦 سفارشات در انتظار تایید: <b>{total_orders}</b>',
         reply_markup=InlineKeyboardMarkup([
-            [
-                InlineKeyboardButton(
-                    "بازگشت به پنل",
-                    callback_data="admin_panel",
-                    icon_custom_emoji_id=CUSTOM_EMOJIS.get("tick")
-                )
-            ]
+            [InlineKeyboardButton("🔙 بازگشت به پنل", callback_data="admin_panel")]
         ]),
         parse_mode="HTML"
     )
@@ -219,7 +180,6 @@ async def handle_broadcast_message(update: Update, context: ContextTypes.DEFAULT
 
 # ============ دریافت ID ایموجی ============
 async def get_emoji_id(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """دستور /emojiid برای دریافت ID ایموجی‌های پریمیوم"""
     if not update.message or not update.message.entities:
         await update.message.reply_text(
             "❌ یک Custom Emoji برای من بفرست تا ID آن را استخراج کنم."
@@ -308,20 +268,8 @@ async def handle_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
             )
 
             admin_keyboard = [
-                [
-                    InlineKeyboardButton(
-                        "تایید و واریز",
-                        callback_data=f'approve_{user_id}',
-                        icon_custom_emoji_id=CUSTOM_EMOJIS.get("tick")
-                    )
-                ],
-                [
-                    InlineKeyboardButton(
-                        "رد",
-                        callback_data=f'reject_{user_id}',
-                        icon_custom_emoji_id=CUSTOM_EMOJIS.get("warning")
-                    )
-                ]
+                [InlineKeyboardButton("✅ تایید و واریز", callback_data=f'approve_{user_id}')],
+                [InlineKeyboardButton("❌ رد", callback_data=f'reject_{user_id}')]
             ]
             await context.bot.send_message(
                 ADMIN_ID, 
@@ -374,7 +322,6 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text.strip()
     user_id = update.effective_user.id
     
-    # بررسی دستور پنل ادمین
     if text == "پنل" and await is_admin(user_id):
         await admin_panel(update, context)
         return
@@ -415,20 +362,8 @@ async def handle_amount(update: Update, context: ContextTypes.DEFAULT_TYPE, text
     context.user_data['price'] = price
 
     keyboard = [
-        [
-            InlineKeyboardButton(
-                "تایید و خرید",
-                callback_data='confirm_amount',
-                icon_custom_emoji_id=CUSTOM_EMOJIS.get("tick")
-            )
-        ],
-        [
-            InlineKeyboardButton(
-                "انصراف",
-                callback_data='cancel',
-                icon_custom_emoji_id=CUSTOM_EMOJIS.get("warning")
-            )
-        ]
+        [InlineKeyboardButton("✅ تایید و خرید", callback_data='confirm_amount')],
+        [InlineKeyboardButton("❌ انصراف", callback_data='cancel')]
     ]
     await update.message.reply_text(
         f'{ce("mewo", "🍏")} شما <b>{mewo_points:,} میلیون</b> میوپوینت درخواست کردید.\n'
@@ -483,15 +418,7 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
         'receipt_photo': update.message.photo[-1].file_id
     }
 
-    keyboard = [
-        [
-            InlineKeyboardButton(
-                "تایید نهایی",
-                callback_data='confirm_payment',
-                icon_custom_emoji_id=CUSTOM_EMOJIS.get("tick")
-            )
-        ]
-    ]
+    keyboard = [[InlineKeyboardButton("✅ تایید نهایی", callback_data='confirm_payment')]]
     await update.message.reply_text(
         f'{ce("tick", "✅")} فیش دریافت شد.\n'
         f'{ce("clock", "⏳")} برای تایید نهایی دکمه زیر رو بزن:',
