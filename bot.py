@@ -1,4 +1,4 @@
-# bot.py - نسخه نهایی با قیمت‌های تومانی
+# bot.py
 import re
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, MessageHandler, filters, ContextTypes
@@ -7,9 +7,10 @@ from telegram.ext import Application, CommandHandler, CallbackQueryHandler, Mess
 TOKEN = "8651125448:AAEjFhxzCmEcYgi7aTiv5s4LpgH6SWoosPQ"  # بعداً عوض کن
 ADMIN_ID = 5013016506
 
-user_points = {}
+# دیتابیس موقت
 pending_orders = {}
 
+# ایموجی‌های پریمیوم
 EMOJIS = {
     "apple": "🍎",
     "money": "💰",
@@ -18,7 +19,11 @@ EMOJIS = {
     "rocket": "🚀",
     "gift": "🎁",
     "star": "⭐",
-    "point": "⭐"
+    "point": "⭐",
+    "bank": "🏦",
+    "card": "💳",
+    "warning": "⚠️",
+    "success": "🎉"
 }
 
 # ============ توابع ============
@@ -34,15 +39,12 @@ def calculate_price(mewo_points):
 # ============ دستورات ============
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
-    user_id = user.id
-
-    points = user_points.get(user_id, 0)
+    
     await update.message.reply_text(
-        f"{EMOJIS['rocket']} به ربات فروش میوپوینت خوش آمدی {user.first_name}!\n"
-        f"{EMOJIS['star']} موجودی شما: **{points:,}** میوپوینت\n\n"
+        f"{EMOJIS['rocket']} به ربات فروش میوپوینت خوش آمدی {user.first_name}!\n\n"
         f"{EMOJIS['apple']} تعداد میوپوینت مورد نظرت رو وارد کن (به میلیون):\n"
         f"(حداقل ۱ میلیون - حداکثر ۱,۰۰۰ میلیون)\n\n"
-        f"📊 قیمت‌ها (به ازای هر ۱ میلیون میوپوینت):\n"
+        f"{EMOJIS['star']} قیمت‌ها (به ازای هر ۱ میلیون میوپوینت):\n"
         f"• زیر ۳۰ میلیون: ۴,۵۰۰ تومان\n"
         f"• ۳۰ تا ۲۰۰ میلیون: ۴,۰۰۰ تومان\n"
         f"• بالای ۲۰۰ میلیون: ۳,۵۰۰ تومان"
@@ -55,12 +57,12 @@ async def handle_amount(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     text = update.message.text.replace(',', '').strip()
     if not text.isdigit():
-        await update.message.reply_text("❌ فقط عدد وارد کن (تعداد میوپوینت به میلیون).")
+        await update.message.reply_text(f"{EMOJIS['warning']} فقط عدد وارد کن (تعداد میوپوینت به میلیون).")
         return
 
     mewo_points = int(text)
     if mewo_points < 1 or mewo_points > 1000:
-        await update.message.reply_text("❌ تعداد میوپوینت باید بین ۱ تا ۱,۰۰۰ میلیون باشه.")
+        await update.message.reply_text(f"{EMOJIS['warning']} تعداد میوپوینت باید بین ۱ تا ۱,۰۰۰ میلیون باشه.")
         return
 
     actual_points = mewo_points * 1_000_000
@@ -72,7 +74,7 @@ async def handle_amount(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     keyboard = [
         [InlineKeyboardButton(f"{EMOJIS['tick']} تایید و خرید", callback_data='confirm_amount')],
-        [InlineKeyboardButton("❌ انصراف", callback_data='cancel')]
+        [InlineKeyboardButton(f"{EMOJIS['warning']} انصراف", callback_data='cancel')]
     ]
     await update.message.reply_text(
         f"{EMOJIS['apple']} شما **{mewo_points:,} میلیون** میوپوینت درخواست کردید.\n"
@@ -82,7 +84,6 @@ async def handle_amount(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
     context.user_data['state'] = 'waiting_confirm'
 
-# ============ ادامه (همون کد قبلی) ============
 async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
@@ -93,7 +94,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         context.user_data['state'] = 'waiting_card'
 
     elif query.data == 'cancel':
-        await query.edit_message_text("❌ لغو شد.")
+        await query.edit_message_text(f"{EMOJIS['warning']} لغو شد.")
         context.user_data.clear()
 
     elif query.data == 'confirm_payment':
@@ -101,22 +102,26 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             order = pending_orders[user_id]
             await context.bot.send_message(
                 ADMIN_ID,
-                f"📥 درخواست جدید میوپوینت!\n"
-                f"👤 کاربر: {query.from_user.first_name} (ایدی: {user_id})\n"
-                f"⭐ میوپوینت: {order['mewo_points']:,}\n"
-                f"💰 مبلغ: {order['price']:,} تومان\n"
-                f"💳 شماره کارت: {order['card_number']}"
+                f"{EMOJIS['gift']} درخواست جدید میوپوینت!\n"
+                f"{EMOJIS['star']} کاربر: {query.from_user.first_name} (ایدی: {user_id})\n"
+                f"{EMOJIS['apple']} میوپوینت: {order['mewo_points']:,}\n"
+                f"{EMOJIS['money']} مبلغ: {order['price']:,} تومان\n"
+                f"{EMOJIS['card']} شماره کارت: {order['card_number']}"
             )
             if 'receipt_photo' in order:
-                await context.bot.send_photo(ADMIN_ID, order['receipt_photo'], caption=f"🖼 فیش واریزی")
+                await context.bot.send_photo(ADMIN_ID, order['receipt_photo'], caption=f"{EMOJIS['bank']} فیش واریزی")
 
-            await query.edit_message_text(f"{EMOJIS['tick']} فیش ارسال شد! منتظر تایید مدیر باشید.")
+            await query.edit_message_text(f"{EMOJIS['tick']} فیش ارسال شد! منتظر تایید مدیر باشید {EMOJIS['clock']}")
 
             admin_keyboard = [
-                [InlineKeyboardButton("✅ تایید و واریز میوپوینت", callback_data=f'approve_{user_id}')],
-                [InlineKeyboardButton("❌ رد", callback_data=f'reject_{user_id}')]
+                [InlineKeyboardButton(f"{EMOJIS['tick']} تایید و واریز میوپوینت", callback_data=f'approve_{user_id}')],
+                [InlineKeyboardButton(f"{EMOJIS['warning']} رد", callback_data=f'reject_{user_id}')]
             ]
-            await context.bot.send_message(ADMIN_ID, "👍 اقدام کن:", reply_markup=InlineKeyboardMarkup(admin_keyboard))
+            await context.bot.send_message(
+                ADMIN_ID, 
+                f"{EMOJIS['star']} یکی از گزینه‌ها رو انتخاب کن:",
+                reply_markup=InlineKeyboardMarkup(admin_keyboard)
+            )
             context.user_data.clear()
 
     elif query.data.startswith('approve_'):
@@ -124,23 +129,23 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             target_user = int(query.data.split('_')[1])
             if target_user in pending_orders:
                 points = pending_orders[target_user]['mewo_points']
-                user_points[target_user] = user_points.get(target_user, 0) + points
-
+                
                 await context.bot.send_message(
                     target_user,
-                    f"{EMOJIS['tick']} خرید شما تایید شد!\n"
-                    f"{EMOJIS['gift']} **{points:,}** میوپوینت به حساب شما واریز شد.\n"
-                    f"{EMOJIS['star']} موجودی فعلی: **{user_points[target_user]:,}** میوپوینت"
+                    f"{EMOJIS['success']} خرید شما تایید شد!\n"
+                    f"{EMOJIS['gift']} **{points:,}** میوپوینت به شماره کارت میویی شما واریز شد.\n"
+                    f"{EMOJIS['bank']} شماره کارت میویی: `240368354326`\n"
+                    f"{EMOJIS['star']} از خرید شما متشکریم!"
                 )
-                await query.edit_message_text(f"✅ {points:,} میوپوینت برای کاربر {target_user} واریز شد.")
+                await query.edit_message_text(f"{EMOJIS['tick']} {points:,} میوپوینت برای کاربر {target_user} واریز شد.")
                 del pending_orders[target_user]
                 context.user_data.clear()
 
     elif query.data.startswith('reject_'):
         if user_id == ADMIN_ID:
             target_user = int(query.data.split('_')[1])
-            await context.bot.send_message(target_user, "❌ خرید شما رد شد.")
-            await query.edit_message_text("❌ رد شد.")
+            await context.bot.send_message(target_user, f"{EMOJIS['warning']} خرید شما رد شد. با پشتیبانی تماس بگیرید.")
+            await query.edit_message_text(f"{EMOJIS['warning']} رد شد.")
             if target_user in pending_orders:
                 del pending_orders[target_user]
 
@@ -150,14 +155,15 @@ async def handle_card(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     card = update.message.text.strip()
     if not re.match(r'^\d{16}$', card):
-        await update.message.reply_text("❌ شماره کارت ۱۶ رقم باشه.")
+        await update.message.reply_text(f"{EMOJIS['warning']} شماره کارت باید ۱۶ رقم باشه.")
         return
 
     context.user_data['card_number'] = card
     await update.message.reply_text(
-        f"{EMOJIS['money']} مبلغ {context.user_data['price']:,} تومان رو به شماره کارت زیر واریز کن:\n"
-        f"`6037-9918-1234-5678`\n\n"
-        f"سپس عکس فیش رو بفرست."
+        f"{EMOJIS['bank']} مبلغ {context.user_data['price']:,} تومان رو به شماره کارت زیر واریز کن:\n"
+        f"`6219861448719251`\n"
+        f"به نام **علیرضا کیانی**\n\n"
+        f"{EMOJIS['clock']} سپس عکس فیش واریزی رو بفرست."
     )
     context.user_data['state'] = 'waiting_receipt'
 
@@ -166,7 +172,7 @@ async def handle_receipt(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     if not update.message.photo:
-        await update.message.reply_text("❌ عکس فیش رو بفرست.")
+        await update.message.reply_text(f"{EMOJIS['warning']} لطفاً یک عکس از فیش واریزی ارسال کن.")
         return
 
     user_id = update.effective_user.id
@@ -179,7 +185,8 @@ async def handle_receipt(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     keyboard = [[InlineKeyboardButton(f"{EMOJIS['tick']} تایید نهایی", callback_data='confirm_payment')]]
     await update.message.reply_text(
-        "✅ فیش دریافت شد. برای تایید نهایی کلیک کن:",
+        f"{EMOJIS['tick']} فیش دریافت شد.\n"
+        f"{EMOJIS['clock']} برای تایید نهایی دکمه زیر رو بزن:",
         reply_markup=InlineKeyboardMarkup(keyboard)
     )
     context.user_data['state'] = 'waiting_final_confirm'
@@ -193,7 +200,7 @@ def main():
     app.add_handler(CallbackQueryHandler(button_handler))
     app.add_handler(MessageHandler(filters.Regex(r'^\d{16}$'), handle_card))
     
-    print("🤖 ربات میوپوینت روشن شد!")
+    print("🤖 ربات میوپوینت با ایموجی‌های پریمیوم روشن شد!")
     app.run_polling()
 
 if __name__ == "__main__":
